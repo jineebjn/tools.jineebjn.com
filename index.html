@@ -131,6 +131,7 @@
   <script>
     const searchBox = document.getElementById('search-box');
     const toolCards = document.querySelectorAll('.tool-card');
+    const categories = document.querySelectorAll('.category');
 
     function resizeToFit() {
       const scaler = document.querySelector('.scaler');
@@ -142,17 +143,35 @@
       scaler.style.transform = `scale(${scale})`;
     }
 
-    searchBox.addEventListener('input', () => {
+    function filterTools() {
       const query = searchBox.value.toLowerCase();
-      toolCards.forEach(card => {
-        const text = card.textContent.toLowerCase();
-        card.style.display = text.includes(query) ? '' : 'none';
+
+      categories.forEach(category => {
+        const tools = category.querySelectorAll('.tool-card');
+        let anyVisible = false;
+
+        tools.forEach(tool => {
+          const text = tool.textContent.toLowerCase();
+          if (text.includes(query)) {
+            tool.style.display = '';
+            anyVisible = true;
+          } else {
+            tool.style.display = 'none';
+          }
+        });
+
+        category.style.display = anyVisible ? '' : 'none';
       });
+
+      resizeToFit();
+    }
+
+    searchBox.addEventListener('input', filterTools);
+    window.addEventListener('resize', resizeToFit);
+    window.addEventListener('load', () => {
+      filterTools();
       resizeToFit();
     });
-
-    window.addEventListener('resize', resizeToFit);
-    window.addEventListener('load', resizeToFit);
   </script>
 </body>
 </html>
