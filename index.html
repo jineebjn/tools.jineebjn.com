@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>RedShadow Toolbox</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #1e1e2f;
+      color: #ffffff;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+      color: #00ffd5;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    h2 {
+      color: #ffcb6b;
+      border-bottom: 1px solid #444;
+      padding-bottom: 5px;
+    }
+    ul {
+      list-style-type: none;
+      padding: 0;
+    }
+    li {
+      margin: 15px 0;
+      padding: 10px;
+      background-color: #2b2b3d;
+      border-radius: 5px;
+    }
+    a {
+      text-decoration: none;
+      color: #00d8ff;
+      font-weight: bold;
+      font-size: 18px;
+    }
+    a:hover {
+      color: #ffd700;
+    }
+    .desc {
+      font-size: 14px;
+      color: #cccccc;
+      margin-top: 5px;
+    }
+    .category {
+      margin-bottom: 30px;
+    }
+    #search-box {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 20px;
+      font-size: 16px;
+      border: none;
+      border-radius: 5px;
+      box-sizing: border-box;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔍 RedShadow Toolbox</h1>
+    <input type="text" id="search-box" placeholder="Search tools...">
+
+    <!-- <div class="category">
+      <h2>🛠 Pentesting Tools</h2>
+      <ul>
+        <li>
+          <a href="http://localhost:3000/burp">Burp Suite</a>
+          <div class="desc">Web vulnerability scanner and proxy for testing web app security.</div>
+        </li>
+        <li>
+          <a href="http://localhost:3000/metasploit">Metasploit Framework</a>
+          <div class="desc">Powerful framework for developing and executing exploits.</div>
+        </li>
+        <li>
+          <a href="http://localhost:3000/nmap">Nmap</a>
+          <div class="desc">Network discovery and port scanning utility.</div>
+        </li>
+      </ul>
+    </div> -->
+
+    <div class="category">
+      <h2>🔎 Recon Tools</h2>
+      <ul>
+        <li>
+          <a href="https://github.com/jineebjn/reconshadow">ReconShadow</a>
+          <div class="desc">Advanced OSINT tool for domain enumeration.</div>
+        </li>
+        <!-- <li>
+          <a href="http://localhost:3000/theharvester">The Harvester</a>
+          <div class="desc">Emails, subdomains, and people name collection via OSINT.</div>
+        </li>
+        <li>
+          <a href="http://localhost:3000/shodan">Shodan</a>
+          <div class="desc">Search engine for internet-connected devices.</div>
+        </li> -->
+      </ul>
+    </div>
+
+    <div class="category">
+      <h2>🆘 Helpers</h2>
+      <ul>
+        <li>
+          <a href="https://gpt.jineebjn.com/">kaliGPT</a>
+          <div class="desc">AI Assistant - simplify complex cybersecurity tasks.</div>
+        </li>
+        <!-- <li>
+          <a href="https://www.hackthebox.com/">Hack The Box</a>
+          <div class="desc">Penetration testing labs and challenges for learning and CTFs.</div>
+        </li>
+        <li>
+          <a href="https://owasp.org/">OWASP</a>
+          <div class="desc">Community-driven security standards and best practices for web apps.</div>
+        </li> -->
+      </ul>
+    </div>
+  </div>
+
+  <script>
+    const searchBox = document.getElementById('search-box');
+    const allLinks = document.querySelectorAll('li');
+
+    searchBox.addEventListener('input', () => {
+      const query = searchBox.value.toLowerCase();
+      allLinks.forEach(li => {
+        const text = li.textContent.toLowerCase();
+        li.style.display = text.includes(query) ? '' : 'none';
+      });
+    });
+  </script>
+</body>
+</html>
