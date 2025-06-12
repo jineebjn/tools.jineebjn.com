@@ -1,55 +1,34 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>RedShadow Toolbox</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background-color: #1e1e2f;
-      color: #ffffff;
+    * {
+      box-sizing: border-box;
+    }
+    html, body {
       margin: 0;
       padding: 20px;
+      height: 100%;
+      overflow: hidden;
+      background-color: #1e1e2f;
+      color: #ffffff;
+      font-family: Arial, sans-serif;
     }
-    h1 {
-      text-align: center;
-      color: #00ffd5;
+    .scaler {
+      transform-origin: top left;
+      transition: transform 0.3s ease;
+      max-width: 100%;
     }
     .container {
       max-width: 800px;
       margin: 0 auto;
     }
-    h2 {
-      color: #ffcb6b;
-      border-bottom: 1px solid #444;
-      padding-bottom: 5px;
-    }
-    ul {
-      list-style-type: none;
-      padding: 0;
-    }
-    li {
-      margin: 15px 0;
-      padding: 10px;
-      background-color: #2b2b3d;
-      border-radius: 5px;
-    }
-    a {
-      text-decoration: none;
-      color: #00d8ff;
-      font-weight: bold;
-      font-size: 18px;
-    }
-    a:hover {
-      color: #ffd700;
-    }
-    .desc {
-      font-size: 14px;
-      color: #cccccc;
-      margin-top: 5px;
-    }
-    .category {
-      margin-bottom: 30px;
+    h1 {
+      text-align: center;
+      color: #00ffd5;
+      margin-top: 0;
     }
     #search-box {
       width: 100%;
@@ -60,79 +39,120 @@
       border-radius: 5px;
       box-sizing: border-box;
     }
+    .category {
+      margin-bottom: 30px;
+    }
+    h2 {
+      color: #ffcb6b;
+      border-bottom: 1px solid #444;
+      padding-bottom: 5px;
+      margin-top: 0;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 15px;
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .tool-card {
+      background-color: #2b2b3d;
+      padding: 10px;
+      border-radius: 5px;
+    }
+    .tool-card a {
+      text-decoration: none;
+      color: #00d8ff;
+      font-weight: bold;
+      font-size: 18px;
+    }
+    .tool-card a:hover {
+      color: #ffd700;
+    }
+    .desc {
+      font-size: 14px;
+      color: #cccccc;
+      margin-top: 5px;
+    }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>🔍 RedShadow Toolbox</h1>
-    <input type="text" id="search-box" placeholder="Search tools...">
+  <div class="scaler">
+    <div class="container">
+      <h1>🔍 RedShadow Toolbox</h1>
+      <input type="text" id="search-box" placeholder="Search tools..." />
 
-    <!-- <div class="category">
-      <h2>🛠 Pentesting Tools</h2>
-      <ul>
-        <li>
-          <a href="http://localhost:3000/burp">Burp Suite</a>
-          <div class="desc">Web vulnerability scanner and proxy for testing web app security.</div>
-        </li>
-        <li>
-          <a href="http://localhost:3000/metasploit">Metasploit Framework</a>
-          <div class="desc">Powerful framework for developing and executing exploits.</div>
-        </li>
-        <li>
-          <a href="http://localhost:3000/nmap">Nmap</a>
-          <div class="desc">Network discovery and port scanning utility.</div>
-        </li>
-      </ul>
-    </div> -->
+      <div class="category" data-category="Recon Tools">
+        <h2>🔎 Recon Tools</h2>
+        <ul class="grid">
+          <li class="tool-card">
+            <a href="https://github.com/jineebjn/reconshadow">ReconShadow</a>
+            <div class="desc">Recon tool for domain enumeration.</div>
+          </li>
+          <!-- Add more recon tools here if needed -->
+        </ul>
+      </div>
 
-    <div class="category">
-      <h2>🔎 Recon Tools</h2>
-      <ul>
-        <li>
-          <a href="https://github.com/jineebjn/reconshadow">ReconShadow</a>
-          <div class="desc">Recon tool for domain enumeration.</div>
-        </li>
-        <!-- <li>
-          <a href="http://localhost:3000/theharvester">The Harvester</a>
-          <div class="desc">Emails, subdomains, and people name collection via OSINT.</div>
-        </li>
-        <li>
-          <a href="http://localhost:3000/shodan">Shodan</a>
-          <div class="desc">Search engine for internet-connected devices.</div>
-        </li> -->
-      </ul>
-    </div>
+      <div class="category" data-category="Helpers">
+        <h2>🆘 Helpers</h2>
+        <ul class="grid">
+          <li class="tool-card">
+            <a href="https://gpt.jineebjn.com/">kaliGPT</a>
+            <div class="desc">AI Assistant - simplify complex cybersecurity tasks.</div>
+          </li>
+          <!-- Add more helper tools here if needed -->
+        </ul>
+      </div>
 
-    <div class="category">
-      <h2>🆘 Helpers</h2>
-      <ul>
-        <li>
-          <a href="https://gpt.jineebjn.com/">kaliGPT</a>
-          <div class="desc">AI Assistant - simplify complex cybersecurity tasks.</div>
-        </li>
-        <!-- <li>
-          <a href="https://www.hackthebox.com/">Hack The Box</a>
-          <div class="desc">Penetration testing labs and challenges for learning and CTFs.</div>
-        </li>
-        <li>
-          <a href="https://owasp.org/">OWASP</a>
-          <div class="desc">Community-driven security standards and best practices for web apps.</div>
-        </li> -->
-      </ul>
+      <!-- Uncomment and add Pentesting Tools if desired -->
+      <!--
+      <div class="category" data-category="Pentesting Tools">
+        <h2>🛠 Pentesting Tools</h2>
+        <ul class="grid">
+          <li class="tool-card">
+            <a href="http://localhost:3000/burp">Burp Suite</a>
+            <div class="desc">Web vulnerability scanner and proxy for testing web app security.</div>
+          </li>
+          <li class="tool-card">
+            <a href="http://localhost:3000/metasploit">Metasploit Framework</a>
+            <div class="desc">Powerful framework for developing and executing exploits.</div>
+          </li>
+          <li class="tool-card">
+            <a href="http://localhost:3000/nmap">Nmap</a>
+            <div class="desc">Network discovery and port scanning utility.</div>
+          </li>
+        </ul>
+      </div>
+      -->
     </div>
   </div>
 
   <script>
     const searchBox = document.getElementById('search-box');
-    const allLinks = document.querySelectorAll('li');
+    const toolCards = document.querySelectorAll('.tool-card');
+
+    function resizeToFit() {
+      const scaler = document.querySelector('.scaler');
+      const contentHeight = document.body.scrollHeight;
+      const contentWidth = document.body.scrollWidth;
+      const scaleX = window.innerWidth / contentWidth;
+      const scaleY = window.innerHeight / contentHeight;
+      const scale = Math.min(scaleX, scaleY, 1);
+      scaler.style.transform = `scale(${scale})`;
+    }
 
     searchBox.addEventListener('input', () => {
       const query = searchBox.value.toLowerCase();
-      allLinks.forEach(li => {
-        const text = li.textContent.toLowerCase();
-        li.style.display = text.includes(query) ? '' : 'none';
+      toolCards.forEach(card => {
+        const text = card.textContent.toLowerCase();
+        card.style.display = text.includes(query) ? '' : 'none';
       });
+      resizeToFit();
     });
+
+    window.addEventListener('resize', resizeToFit);
+    window.addEventListener('load', resizeToFit);
   </script>
 </body>
 </html>
