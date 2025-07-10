@@ -1,23 +1,35 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Scan Viewer</title>
-  <style>
-    body { font-family: Arial, sans-serif; padding: 2rem; }
-    textarea { width: 100%; height: 200px; margin-top: 1rem; }
-  </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Recon Report Viewer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-  <h1>Recon Report Viewer</h1>
-  <input type="text" id="domainInput" placeholder="Enter domain (e.g., example.com)" />
-  <button onclick="loadReports()">Load Report</button>
+<body class="bg-gray-100 text-gray-800">
+  <div class="max-w-4xl mx-auto p-6">
+    <h1 class="text-3xl font-bold mb-4 text-center">Recon Report Viewer</h1>
 
-  <div id="results" style="margin-top: 2rem;">
-    <div id="nmap"><h3>nmap.txt</h3><textarea readonly></textarea></div>
-    <div id="subs"><h3>subs.txt</h3><textarea readonly></textarea></div>
-    <div id="subsuniq"><h3>subs_uniq.txt</h3><textarea readonly></textarea></div>
-    <div id="live"><h3>live.txt</h3><textarea readonly></textarea></div>
+    <div class="flex flex-col sm:flex-row gap-4 mb-6">
+      <input
+        type="text"
+        id="domainInput"
+        placeholder="Enter domain (e.g. example.com)"
+        class="flex-1 border rounded px-4 py-2 shadow"
+      />
+      <button
+        onclick="loadReports()"
+        class="bg-blue-600 text-white px-6 py-2 rounded shadow hover:bg-blue-700 transition"
+      >
+        Load Report
+      </button>
+    </div>
+
+    <div id="status" class="text-red-600 font-semibold mb-4 hidden"></div>
+
+    <div id="results" class="space-y-8">
+      <!-- Sections inserted by JS -->
+    </div>
   </div>
 
   <script>
@@ -30,17 +42,48 @@
       live: "live.txt"
     };
 
+    function createReportCard(title, id) {
+      return `
+        <div id="${id}" class="bg-white rounded-lg shadow p-4">
+          <div class="flex justify-between items-center mb-2">
+            <h2 class="text-xl font-semibold">${title}</h2>
+            <a href="#" id="${id}-download" class="text-blue-600 underline hidden" download>Download</a>
+          </div>
+          <textarea readonly class="w-full h-48 border rounded p-2 text-sm bg-gray-50"></textarea>
+        </div>
+      `;
+    }
+
     async function loadReports() {
       const domain = document.getElementById("domainInput").value.trim();
-      if (!domain) return alert("Enter a domain.");
+      const results = document.getElementById("results");
+      const status = document.getElementById("status");
+      results.innerHTML = "";
+      status.classList.add("hidden");
+
+      if (!domain) {
+        status.textContent = "Please enter a domain.";
+        status.classList.remove("hidden");
+        return;
+      }
+
+      for (let id in files) {
+        results.innerHTML += createReportCard(files[id], id);
+      }
 
       for (let id in files) {
         const url = `${baseURL}/${domain}/${files[id]}`;
         try {
           const res = await fetch(url);
           if (!res.ok) throw new Error("Not found");
+
           const text = await res.text();
           document.querySelector(`#${id} textarea`).value = text;
+
+          // Update download link
+          const downloadLink = document.getElementById(`${id}-download`);
+          downloadLink.href = url;
+          downloadLink.classList.remove("hidden");
         } catch (e) {
           document.querySelector(`#${id} textarea`).value = "[File not found or failed to load]";
         }
