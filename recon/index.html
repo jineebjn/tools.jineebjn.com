@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Scan Viewer</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 2rem; }
+    textarea { width: 100%; height: 200px; margin-top: 1rem; }
+  </style>
+</head>
+<body>
+  <h1>Recon Report Viewer</h1>
+  <input type="text" id="domainInput" placeholder="Enter domain (e.g., example.com)" />
+  <button onclick="loadReports()">Load Report</button>
+
+  <div id="results" style="margin-top: 2rem;">
+    <div id="nmap"><h3>nmap.txt</h3><textarea readonly></textarea></div>
+    <div id="subs"><h3>subs.txt</h3><textarea readonly></textarea></div>
+    <div id="subsuniq"><h3>subs_uniq.txt</h3><textarea readonly></textarea></div>
+    <div id="live"><h3>live.txt</h3><textarea readonly></textarea></div>
+  </div>
+
+  <script>
+    const baseURL = "https://raw.githubusercontent.com/jineebjn/jjn-actions/refs/heads/main/output";
+
+    const files = {
+      nmap: "nmap.txt",
+      subs: "subs.txt",
+      subsuniq: "subs_uniq.txt",
+      live: "live.txt"
+    };
+
+    async function loadReports() {
+      const domain = document.getElementById("domainInput").value.trim();
+      if (!domain) return alert("Enter a domain.");
+
+      for (let id in files) {
+        const url = `${baseURL}/${domain}/${files[id]}`;
+        try {
+          const res = await fetch(url);
+          if (!res.ok) throw new Error("Not found");
+          const text = await res.text();
+          document.querySelector(`#${id} textarea`).value = text;
+        } catch (e) {
+          document.querySelector(`#${id} textarea`).value = "[File not found or failed to load]";
+        }
+      }
+    }
+  </script>
+</body>
+</html>
