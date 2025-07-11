@@ -2,260 +2,305 @@
 <html lang="en" class="dark">
 
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Recon Report Viewer</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        const spinner = document.createElement("div");
-        spinner.innerHTML = '<div id="spinner" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75"><div class="animate-spin rounded-full h-16 w-16 border-t-4 border-blue-500"></div></div>';
-        document.body.appendChild(spinner);
-        tailwind.config = {
-            darkMode: 'class'
-        }
-    </script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
-        crossorigin="anonymous" referrerpolicy="no-referrer" />
-    <style>
-        html,
-        body {
-            height: 100%;
-        }
-
-        .resizable-panel {
-            resize: vertical;
-            overflow: auto;
-            min-height: 200px;
-            max-height: 80vh;
-        }
-
-        .live-link {
-            line-height: 0rem;
-        }
-
-        #summaryStats {
-            transition: all 0.3s ease-in-out;
-            opacity: 0;
-            transform: translateY(-10px);
-        }
-
-        #summaryStats.visible {
-            display: flex;
-            opacity: 1;
-            transform: translateY(0);
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Recon Report Viewer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    const spinner = document.createElement("div");
+    spinner.innerHTML = '<div id="spinner" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75"><div class="animate-spin rounded-full h-16 w-16 border-t-4 border-blue-500"></div></div>';
+    document.body.appendChild(spinner);
+    tailwind.config = { darkMode: 'class' }
+  </script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <style>
+    html, body {
+      height: 100%;
+    }
+    .resizable-panel {
+      resize: vertical; 
+      overflow: auto;
+      min-height: 200px;
+      max-height: 80vh;
+    }
+    .live-link {
+      line-height: 0rem;
+    }
+    #summaryStats {
+      transition: all 0.3s ease-in-out;
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    #summaryStats.visible {
+      display: flex;
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
 </head>
 
 <body class="bg-gray-900 text-gray-100 h-full">
-    <div class="flex flex-col h-full">
-        <div
-            class="p-6 border-b border-gray-700 flex flex-col gap-4 md:flex-row justify-between items-start md:items-center">
-            <h1 class="text-3xl font-bold">Recon Report Viewer</h1>
-            <div class="flex flex-col md:flex-row md:items-center md:space-x-6 space-y-2 md:space-y-0 w-full md:w-auto">
-                <input type="text" id="searchInput" placeholder="Search in results..."
-                    class="px-4 py-2 rounded bg-gray-800 border border-gray-600 text-white hidden" />
-                <div id="summaryStats" class="hidden gap-6 text-gray-300 text-sm items-center">
-                    <div class="flex items-center gap-2"><i class="fa-solid fa-layer-group"></i> Subs: <span
-                            id="summarySubs">0</span></div>
-                    <div class="flex items-center gap-2"><i class="fa-solid fa-signal"></i> Live: <span
-                            id="summaryLive">0</span></div>
-                    <div class="flex items-center gap-2"><i class="fa-solid fa-network-wired"></i> Nmap: <span
-                            id="summaryNmap">0</span></div>
-                </div>
-                <div class="flex flex-wrap items-center gap-4">
-                    <div class="relative">
-                        <select id="domainInput" onchange="loadReports()"
-                            class="border rounded px-4 py-2 shadow bg-gray-800 text-white w-64 appearance-none">
-                            <option disabled selected>Loading domains...</option>
-                        </select>
+  <div class="flex flex-col h-full">
+    <div class="p-6 border-b border-gray-700 flex flex-col gap-4 md:flex-row justify-between items-start md:items-center">
+      <div class="flex flex-col gap-2">
+        <h1 class="text-3xl font-bold">Recon Report Viewer</h1>
 
-                        <button id="refreshDomains" class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded"
-                            title="Refresh domain list">
-                            <i class="fas fa-sync-alt"></i>
-                        </button>
-                    </div>
-                    <div id="status" class="text-red-400 font-semibold hidden ml-4"></div>
-                </div>
-            </div>
-        </div>
-
-        <div id="results" class="flex-1 overflow-auto p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <!-- Panels inserted by JS -->
-        </div>
-    </div>
-
-    <script>
-        const baseURL = "https://raw.githubusercontent.com/jineebjn/jjn-actions/refs/heads/main/output";
-        const files = {
-            nmap: "nmap.txt",
-            live: "live.txt",
-            subs: "subs.txt",
-            subsuniq: "subs_uniq.txt"
-        };
-
-        const suspiciousKeywords = ["admin", "login", "phpmyadmin", "exposed", "database", "root", "ftp", "backup", "git", "env"];
-
-        function escapeHTML(text) {
-            return text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-        }
-
-        function highlightSuspiciousKeywords(text) {
-            const regex = new RegExp(`\\b(${suspiciousKeywords.join("|")})\\b`, "gi");
-            return text.replace(regex, match =>
-                `<span class="bg-yellow-300 text-black font-semibold px-1 rounded">${match}</span>`);
-        }
-
-        function linkifyLiveText(text) {
-            return text.trim().split(/\n+/).map(line => {
-                let url = line.startsWith("http") ? line : `http://${line}`;
-                return `<a href="${url}" target="_blank" class="text-blue-400 hover:underline block live-link">${url}</a>`;
-            }).join("\n");
-        }
-
-        async function loadDomainOptions() {
-            const select = document.getElementById("domainInput");
-            const apiURL = "https://api.github.com/repos/jineebjn/jjn-actions/git/trees/main?recursive=1";
-            try {
-                const res = await fetch(apiURL);
-                const data = await res.json();
-                const dirs = new Set();
-                for (const item of data.tree) {
-                    const match = item.path.match(/^output\/(.+?)\//);
-                    if (match) dirs.add(match[1]);
-                }
-                if (dirs.size === 0) throw new Error("No domains found");
-                document.getElementById("spinner")?.remove();
-                select.innerHTML = '<option disabled selected>Select domain</option>' +
-                    Array.from(dirs).sort().map(dir => `<option value="${dir}">${dir}</option>`).join('');
-            } catch (e) {
-                document.getElementById("spinner")?.remove();
-                select.innerHTML = '<option disabled>Error loading domains</option>';
-            }
-        }
-
-        function createPanel(title, id) {
-  return `
-  <div id="${id}" class="bg-gray-800 text-gray-100 rounded-lg shadow border flex flex-col resizable-panel">
-    <div class="flex justify-between items-center p-4 border-b border-gray-700">
-      <div class="flex flex-col gap-1">
-        
-        <div class="flex gap-4">
-            <h2 class="text-lg font-semibold">${title}</h2>
-          <span class="text-sm text-gray-400" id="${id}-status">Loading...</span>
-          <span class="text-sm text-gray-400" id="${id}-stats"></span>
+        <!-- New Domain Submission Input -->
+        <div class="flex flex-wrap items-center gap-4">
+          <input type="text" id="submitDomainInput" placeholder="Submit new domain..."
+            class="px-4 py-2 rounded bg-gray-800 border border-gray-600 text-white w-64" />
+          <button id="submitDomainBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
+            Submit
+          </button>
+          <span id="submitDomainStatus" class="text-sm font-medium ml-4"></span>
         </div>
       </div>
-      <a href="#" id="${id}-download" class="text-blue-400 underline hidden" download>Download</a>
+
+      <!-- Domain Selection, Summary Stats, and Search -->
+      <div class="flex flex-col md:flex-row md:items-center md:space-x-6 space-y-2 md:space-y-0 w-full md:w-auto">
+        <input type="text" id="searchInput" placeholder="Search in results..."
+          class="px-4 py-2 rounded bg-gray-800 border border-gray-600 text-white hidden" />
+        <div id="summaryStats" class="hidden gap-6 text-gray-300 text-sm items-center">
+          <div class="flex items-center gap-2"><i class="fa-solid fa-layer-group"></i> Subs: <span id="summarySubs">0</span></div>
+          <div class="flex items-center gap-2"><i class="fa-solid fa-signal"></i> Live: <span id="summaryLive">0</span></div>
+          <div class="flex items-center gap-2"><i class="fa-solid fa-network-wired"></i> Nmap: <span id="summaryNmap">0</span></div>
+        </div>
+        <div class="flex flex-wrap items-center gap-4">
+          <div class="relative">
+            <select id="domainInput" onchange="loadReports()" class="border rounded px-4 py-2 shadow bg-gray-800 text-white w-64 appearance-none">
+              <option disabled selected>Loading domains...</option>
+            </select>
+            <button id="refreshDomains" class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded" title="Refresh domain list">
+              <i class="fas fa-sync-alt"></i>
+            </button>
+          </div>
+          <div id="status" class="text-red-400 font-semibold hidden ml-4"></div>
+        </div>
+      </div>
     </div>
-    <div class="p-4 flex-1 flex flex-col overflow-auto">
-      <pre id="${id}-content" class="bg-gray-900 text-gray-100 p-2 rounded overflow-auto text-sm whitespace-pre-wrap flex-1" data-raw="">Loading...</pre>
-    </div>
+
+    <div id="results" class="flex-1 overflow-auto p-6 grid grid-cols-1 md:grid-cols-2 gap-4"></div>
   </div>
-  `;
-}
 
+  <script>
+    const baseURL = "https://raw.githubusercontent.com/jineebjn/jjn-actions/refs/heads/main/output";
+    const files = { nmap: "nmap.txt", live: "live.txt", subs: "subs.txt", subsuniq: "subs_uniq.txt" };
+    const suspiciousKeywords = ["admin", "login", "phpmyadmin", "exposed", "database", "root", "ftp", "backup", "git", "env"];
 
-        async function loadReports() {
-            const domain = document.getElementById("domainInput").value.trim();
-            const results = document.getElementById("results");
-            const status = document.getElementById("status");
-            const summaryStatsEl = document.getElementById("summaryStats");
-            results.innerHTML = "";
-            status.classList.add("hidden");
+    function escapeHTML(text) {
+      return text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
 
-            if (!domain) {
-                status.textContent = "Please select a domain.";
-                status.classList.remove("hidden");
-                document.getElementById("domainInput").focus();
-                return;
-            }
+    function highlightSuspiciousKeywords(text) {
+      const regex = new RegExp(`\\b(${suspiciousKeywords.join("|")})\\b`, "gi");
+      return text.replace(regex, match => `<span class="bg-yellow-300 text-black font-semibold px-1 rounded">${match}</span>`);
+    }
 
-            summaryStatsEl.classList.remove("hidden");
-            summaryStatsEl.classList.add("visible");
-            document.getElementById("searchInput").classList.remove("hidden");
+    function linkifyLiveText(text) {
+      const lines = text.trim().split(/\n+/);
+      return lines.map((line, index) => {
+        let url = line.startsWith("http") ? line : `http://${line}`;
+        const id = `live-link-${index}`;
+        setTimeout(() => fetchStatus(url, id), 100);
+        return `
+          <div class="items-center justify-between gap-2 text-sm text-white">
+            <a href="${url}" target="_blank" class="text-blue-400 hover:underline break-all flex-1">${url}</a>
+            <span id="${id}" class="text-[10px] px-1 py-0.5 rounded bg-gray-700 text-gray-300 whitespace-nowrap">...</span>
+          </div>`;
+      }).join("");
+    }
 
-            let summaryStats = { subs: 0, live: 0, nmap: 0 };
+    async function fetchStatus(url, elementId) {
+      const el = document.getElementById(elementId);
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5000);
+        const res = await fetch(url, { method: "HEAD", mode: "no-cors", signal: controller.signal });
+        clearTimeout(timeout);
+        const code = res.status || 200;
+        let label = `${code} OK`;
+        let color = "bg-green-600";
+        if (code >= 400) color = "bg-red-600";
+        else if (code >= 300) color = "bg-yellow-500";
+        else if (code === 0) color = "bg-gray-600";
+        el.textContent = `[${label}]`;
+        el.className = `text-xs px-2 py-0.5 rounded text-white ${color}`;
+      } catch (e) {
+        el.textContent = `[Timeout]`;
+        el.className = "text-xs px-2 py-0.5 rounded bg-gray-600 text-white";
+      }
+    }
 
-            for (let id in files) {
-                results.innerHTML += createPanel(files[id], id);
-            }
-
-            for (let id in files) {
-                const url = `${baseURL}/${domain}/${files[id]}`;
-                const statusEl = document.getElementById(`${id}-status`);
-                const statsEl = document.getElementById(`${id}-stats`);
-                const contentEl = document.getElementById(`${id}-content`);
-
-                try {
-                    const res = await fetch(url);
-                    if (!res.ok) throw new Error("Not found");
-
-                    const text = await res.text();
-                    contentEl.setAttribute("data-raw", text);
-                    let lineCount = text.trim().split(/\n+/).length;
-                    statsEl.textContent = `${lineCount} line(s)`;
-
-                    if (id === "live") {
-                        contentEl.innerHTML = linkifyLiveText(text);
-                        summaryStats.live = lineCount;
-                    } else {
-                        contentEl.innerHTML = highlightSuspiciousKeywords(escapeHTML(text));
-                        if (id === "subsuniq") summaryStats.subs = lineCount;
-                        if (id === "nmap") summaryStats.nmap = (text.match(/open/g) || []).length;
-                    }
-
-                    statusEl.textContent = "Loaded successfully";
-                    statusEl.classList.replace("text-gray-400", "text-green-400");
-
-                    const downloadLink = document.getElementById(`${id}-download`);
-                    downloadLink.href = url;
-                    downloadLink.classList.remove("hidden");
-
-                } catch (e) {
-                    contentEl.textContent = "[File not found or failed to load]";
-                    statusEl.textContent = "Error: file not found";
-                    statusEl.classList.replace("text-gray-400", "text-red-400");
-                }
-            }
-
-            document.getElementById("summarySubs").textContent = summaryStats.subs;
-            document.getElementById("summaryLive").textContent = summaryStats.live;
-            document.getElementById("summaryNmap").textContent = summaryStats.nmap;
+    async function loadDomainOptions() {
+      const select = document.getElementById("domainInput");
+      const apiURL = "https://api.github.com/repos/jineebjn/jjn-actions/git/trees/main?recursive=1";
+      try {
+        const res = await fetch(apiURL);
+        const data = await res.json();
+        const dirs = new Set();
+        for (const item of data.tree) {
+          const match = item.path.match(/^output\/(.+?)\//);
+          if (match) dirs.add(match[1]);
         }
+        if (dirs.size === 0) throw new Error("No domains found");
+        document.getElementById("spinner")?.remove();
+        select.innerHTML = '<option disabled selected>Select domain</option>' +
+          Array.from(dirs).sort().map(dir => `<option value="${dir}">${dir}</option>`).join('');
+      } catch (e) {
+        document.getElementById("spinner")?.remove();
+        select.innerHTML = '<option disabled>Error loading domains</option>';
+      }
+    }
 
-        document.getElementById("domainInput").addEventListener("keydown", (e) => {
-            if (e.key === "Enter") {
-                e.preventDefault();
-                loadReports();
-            }
+    function createPanel(title, id) {
+      const isLive = id === "live";
+      const contentTag = isLive ? "div" : "pre";
+      const extraClasses = isLive ? "flex flex-col gap-0.5 leading-tight" : "whitespace-pre-wrap";
+      return `
+        <div id="${id}" class="bg-gray-800 text-gray-100 rounded-lg shadow border flex flex-col resizable-panel">
+          <div class="flex justify-between items-center p-4 border-b border-gray-700">
+            <div class="flex flex-col gap-1">
+              <div class="flex gap-4">
+                <h2 class="text-lg font-semibold">${title}</h2>
+                <span class="text-sm text-gray-400" id="${id}-status">Loading...</span>
+                <span class="text-sm text-gray-400" id="${id}-stats"></span>
+              </div>
+            </div>
+            <a href="#" id="${id}-download" class="text-blue-400 underline hidden" download>Download</a>
+          </div>
+          <div class="p-4 flex-1 flex flex-col overflow-auto">
+            <${contentTag} id="${id}-content" class="bg-gray-900 text-gray-100 p-2 rounded overflow-auto text-sm ${extraClasses} flex-1" data-raw="">Loading...</${contentTag}>
+          </div>
+        </div>`;
+    }
+
+    async function loadReports() {
+      const domain = document.getElementById("domainInput").value.trim();
+      const results = document.getElementById("results");
+      const status = document.getElementById("status");
+      const summaryStatsEl = document.getElementById("summaryStats");
+      results.innerHTML = "";
+      status.classList.add("hidden");
+
+      if (!domain) {
+        status.textContent = "Please select a domain.";
+        status.classList.remove("hidden");
+        document.getElementById("domainInput").focus();
+        return;
+      }
+
+      summaryStatsEl.classList.remove("hidden");
+      summaryStatsEl.classList.add("visible");
+      document.getElementById("searchInput").classList.remove("hidden");
+
+      let summaryStats = { subs: 0, live: 0, nmap: 0 };
+
+      for (let id in files) {
+        results.innerHTML += createPanel(files[id], id);
+      }
+
+      for (let id in files) {
+        const url = `${baseURL}/${domain}/${files[id]}`;
+        const statusEl = document.getElementById(`${id}-status`);
+        const statsEl = document.getElementById(`${id}-stats`);
+        const contentEl = document.getElementById(`${id}-content`);
+
+        try {
+          const res = await fetch(url);
+          if (!res.ok) throw new Error("Not found");
+          const text = await res.text();
+          contentEl.setAttribute("data-raw", text);
+          let lineCount = text.trim().split(/\n+/).length;
+          statsEl.textContent = `${lineCount} line(s)`;
+
+          if (id === "live") {
+            contentEl.innerHTML = linkifyLiveText(text);
+            summaryStats.live = lineCount;
+          } else {
+            contentEl.innerHTML = highlightSuspiciousKeywords(escapeHTML(text));
+            if (id === "subsuniq") summaryStats.subs = lineCount;
+            if (id === "nmap") summaryStats.nmap = (text.match(/open/g) || []).length;
+          }
+
+          statusEl.textContent = "Loaded successfully";
+          statusEl.classList.replace("text-gray-400", "text-green-400");
+
+          const downloadLink = document.getElementById(`${id}-download`);
+          downloadLink.href = url;
+          downloadLink.classList.remove("hidden");
+        } catch (e) {
+          contentEl.textContent = "[File not found or failed to load]";
+          statusEl.textContent = "Error: file not found";
+          statusEl.classList.replace("text-gray-400", "text-red-400");
+        }
+      }
+
+      document.getElementById("summarySubs").textContent = summaryStats.subs;
+      document.getElementById("summaryLive").textContent = summaryStats.live;
+      document.getElementById("summaryNmap").textContent = summaryStats.nmap;
+    }
+
+    document.getElementById("domainInput").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        loadReports();
+      }
+    });
+
+    document.getElementById("searchInput").addEventListener("input", function () {
+      const term = this.value.toLowerCase();
+      const contentBlocks = document.querySelectorAll("[id$='-content']");
+      contentBlocks.forEach(block => {
+        const raw = block.getAttribute("data-raw") || "";
+        const isLive = block.id.includes("live");
+        const lines = raw.split(/\n+/);
+        const filtered = lines.filter(line => line.toLowerCase().includes(term)).join("\n");
+        if (isLive) {
+          block.innerHTML = linkifyLiveText(filtered);
+        } else {
+          block.innerHTML = highlightSuspiciousKeywords(escapeHTML(filtered));
+        }
+      });
+    });
+
+    document.getElementById("refreshDomains").addEventListener("click", () => {
+      const select = document.getElementById("domainInput");
+      select.innerHTML = '<option disabled selected>Loading domains...</option>';
+      loadDomainOptions();
+    });
+
+    document.getElementById("submitDomainBtn").addEventListener("click", async () => {
+      const input = document.getElementById("submitDomainInput");
+      const status = document.getElementById("submitDomainStatus");
+      const domain = input.value.trim();
+      if (!domain) {
+        status.textContent = "Please enter a domain.";
+        status.className = "text-red-400 font-semibold ml-4";
+        return;
+      }
+      status.textContent = "Submitting...";
+      status.className = "text-yellow-400 font-medium ml-4";
+      try {
+        const res = await fetch("https://recon.reconworker.workers.dev", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ domain })
         });
+        const data = await res.json();
+        if (data.ok) {
+          status.textContent = "✅ Please wait for output...";
+          status.className = "text-green-400 font-semibold ml-4";
+        } else {
+          status.textContent = "❌ Failed to submit domain.";
+          status.className = "text-red-400 font-semibold ml-4";
+        }
+      } catch (e) {
+        status.textContent = "❌ Error submitting domain.";
+        status.className = "text-red-400 font-semibold ml-4";
+      }
+    });
 
-        document.getElementById("searchInput").addEventListener("input", function () {
-            const term = this.value.toLowerCase();
-            const panels = document.querySelectorAll("pre[id$='-content']");
-            panels.forEach(pre => {
-                const raw = pre.getAttribute("data-raw") || "";
-                const isLive = pre.id.includes("live");
-                const lines = raw.split(/\n+/);
-                const filtered = lines.filter(line => line.toLowerCase().includes(term)).join("\n");
-
-                if (isLive) {
-                    pre.innerHTML = linkifyLiveText(filtered);
-                } else {
-                    pre.innerHTML = highlightSuspiciousKeywords(escapeHTML(filtered));
-                }
-            });
-        });
-
-        document.getElementById("refreshDomains").addEventListener("click", () => {
-            const select = document.getElementById("domainInput");
-            select.innerHTML = '<option disabled selected>Loading domains...</option>';
-            loadDomainOptions();
-        });
-
-        loadDomainOptions();
-    </script>
+    loadDomainOptions();
+  </script>
 </body>
-
 </html>
