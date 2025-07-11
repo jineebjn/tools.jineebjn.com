@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en" class="dark">
-
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -14,49 +13,28 @@
   </script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
   <style>
-    html, body {
-      height: 100%;
+    html, body { height: 100%; }
+    .resizable-panel { resize: vertical; overflow: auto; min-height: 200px; max-height: 80vh; }
+    .live-link { line-height: 0rem; }
+    #summaryStats { transition: all 0.3s ease-in-out; opacity: 0; transform: translateY(-10px); }
+    #summaryStats.visible { display: flex; opacity: 1; transform: translateY(0); }
+    @keyframes fade-in {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
     }
-    .resizable-panel {
-      resize: vertical; 
-      overflow: auto;
-      min-height: 200px;
-      max-height: 80vh;
-    }
-    .live-link {
-      line-height: 0rem;
-    }
-    #summaryStats {
-      transition: all 0.3s ease-in-out;
-      opacity: 0;
-      transform: translateY(-10px);
-    }
-    #summaryStats.visible {
-      display: flex;
-      opacity: 1;
-      transform: translateY(0);
+    .animate-fade-in {
+      animation: fade-in 0.6s ease-out;
     }
   </style>
 </head>
 
 <body class="bg-gray-900 text-gray-100 h-full">
   <div class="flex flex-col h-full">
+
+    <!-- Navigation Section -->
     <div class="p-6 border-b border-gray-700 flex flex-col gap-4 md:flex-row justify-between items-start md:items-center">
-      <div class="flex flex-col gap-2">
-        <h1 class="text-3xl font-bold">Recon Report Viewer</h1>
+      <h1 class="text-3xl font-bold">Recon Report Viewer</h1>
 
-        <!-- New Domain Submission Input -->
-        <div class="flex flex-wrap items-center gap-4">
-          <input type="text" id="submitDomainInput" placeholder="Submit new domain..."
-            class="px-4 py-2 rounded bg-gray-800 border border-gray-600 text-white w-64" />
-          <button id="submitDomainBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
-            Submit
-          </button>
-          <span id="submitDomainStatus" class="text-sm font-medium ml-4"></span>
-        </div>
-      </div>
-
-      <!-- Domain Selection, Summary Stats, and Search -->
       <div class="flex flex-col md:flex-row md:items-center md:space-x-6 space-y-2 md:space-y-0 w-full md:w-auto">
         <input type="text" id="searchInput" placeholder="Search in results..."
           class="px-4 py-2 rounded bg-gray-800 border border-gray-600 text-white hidden" />
@@ -67,7 +45,8 @@
         </div>
         <div class="flex flex-wrap items-center gap-4">
           <div class="relative">
-            <select id="domainInput" onchange="loadReports()" class="border rounded px-4 py-2 shadow bg-gray-800 text-white w-64 appearance-none">
+            <select id="domainInput" onchange="loadReports()"
+              class="border rounded px-4 py-2 shadow bg-gray-800 text-white w-64 appearance-none">
               <option disabled selected>Loading domains...</option>
             </select>
             <button id="refreshDomains" class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded" title="Refresh domain list">
@@ -76,6 +55,22 @@
           </div>
           <div id="status" class="text-red-400 font-semibold hidden ml-4"></div>
         </div>
+      </div>
+    </div>
+
+    <!-- Domain Submit Section -->
+    <div id="submitSection" class="p-6 transition-all duration-500 ease-in-out">
+      <div class="max-w-xl mx-auto bg-gradient-to-r from-gray-800 to-gray-700 shadow-xl rounded-xl p-6 animate-fade-in">
+        <h2 class="text-2xl font-bold mb-4 text-center">Start a New Domain Scan</h2>
+        <div class="flex flex-col sm:flex-row items-center gap-4">
+          <input type="text" id="submitDomainInput" placeholder="Enter domain (e.g. example.com)"
+            class="flex-1 px-4 py-3 rounded-lg bg-gray-900 border border-gray-600 text-white shadow-inner focus:outline-none focus:ring-2 focus:ring-blue-600" />
+          <button id="submitDomainBtn"
+            class="bg-blue-600 hover:bg-blue-700 transition px-6 py-3 rounded-lg text-white font-semibold shadow-md">
+            Scan
+          </button>
+        </div>
+        <p id="submitDomainStatus" class="text-center mt-4 font-medium"></p>
       </div>
     </div>
 
@@ -189,6 +184,9 @@
         return;
       }
 
+      // Hide the domain submission section
+      document.getElementById("submitSection").classList.add("hidden");
+
       summaryStatsEl.classList.remove("hidden");
       summaryStatsEl.classList.add("visible");
       document.getElementById("searchInput").classList.remove("hidden");
@@ -275,11 +273,11 @@
       const domain = input.value.trim();
       if (!domain) {
         status.textContent = "Please enter a domain.";
-        status.className = "text-red-400 font-semibold ml-4";
+        status.className = "text-red-400 font-semibold";
         return;
       }
       status.textContent = "Submitting...";
-      status.className = "text-yellow-400 font-medium ml-4";
+      status.className = "text-yellow-400 font-medium";
       try {
         const res = await fetch("https://recon.reconworker.workers.dev", {
           method: "POST",
@@ -289,14 +287,14 @@
         const data = await res.json();
         if (data.ok) {
           status.textContent = "✅ Please wait for output...";
-          status.className = "text-green-400 font-semibold ml-4";
+          status.className = "text-green-400 font-semibold";
         } else {
           status.textContent = "❌ Failed to submit domain.";
-          status.className = "text-red-400 font-semibold ml-4";
+          status.className = "text-red-400 font-semibold";
         }
       } catch (e) {
         status.textContent = "❌ Error submitting domain.";
-        status.className = "text-red-400 font-semibold ml-4";
+        status.className = "text-red-400 font-semibold";
       }
     });
 
