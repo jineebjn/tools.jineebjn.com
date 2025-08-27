@@ -41,7 +41,7 @@
         <div id="summaryStats" class="hidden gap-6 text-gray-300 text-sm items-center">
           <div class="flex items-center gap-2"><i class="fa-solid fa-layer-group"></i> Subs: <span id="summarySubs">0</span></div>
           <div class="flex items-center gap-2"><i class="fa-solid fa-signal"></i> Live: <span id="summaryLive">0</span></div>
-          <div class="flex items-center gap-2"><i class="fa-solid fa-network-wired"></i> Nmap: <span id="summaryNmap">0</span></div>
+          <div class="flex items-center gap-2"><i class="fa-solid fa-network-wired"></i> Takeover: <span id="summaryTakeover">0</span></div>
         </div>
         <div class="flex flex-wrap items-center gap-4">
           <div class="relative">
@@ -79,7 +79,7 @@
 
   <script>
     const baseURL = "https://raw.githubusercontent.com/jineebjn/jjn-actions/refs/heads/main/output";
-    const files = { nmap: "nmap.txt", live: "live.txt", subs: "subs.txt", subsuniq: "subs_uniq.txt" };
+    const files = { takeover: "takeover.txt", live: "live.txt", subs: "subs.txt", subsuniq: "subs_uniq.txt" };
     const suspiciousKeywords = ["admin", "login", "phpmyadmin", "exposed", "database", "root", "ftp", "backup", "git", "env"];
 
     function escapeHTML(text) {
@@ -191,7 +191,7 @@
       summaryStatsEl.classList.add("visible");
       document.getElementById("searchInput").classList.remove("hidden");
 
-      let summaryStats = { subs: 0, live: 0, nmap: 0 };
+      let summaryStats = { subs: 0, live: 0, takeover: 0 };
 
       for (let id in files) {
         results.innerHTML += createPanel(files[id], id);
@@ -217,7 +217,7 @@
           } else {
             contentEl.innerHTML = highlightSuspiciousKeywords(escapeHTML(text));
             if (id === "subsuniq") summaryStats.subs = lineCount;
-            if (id === "nmap") summaryStats.nmap = (text.match(/open/g) || []).length;
+            if (id === "takeover") summaryStats.takeover = (text.match(/open/g) || []).length;
           }
 
           statusEl.textContent = "Loaded successfully";
@@ -235,7 +235,7 @@
 
       document.getElementById("summarySubs").textContent = summaryStats.subs;
       document.getElementById("summaryLive").textContent = summaryStats.live;
-      document.getElementById("summaryNmap").textContent = summaryStats.nmap;
+      document.getElementById("summaryTakeover").textContent = summaryStats.takeover;
     }
 
     document.getElementById("domainInput").addEventListener("keydown", (e) => {
