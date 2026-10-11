@@ -250,7 +250,7 @@
     function parseLiveLine(line) {
       const raw = String(line).trim();
       if (!raw) return null;
-      let target = raw, status = null, title = "", tech = [], ip = "", cdn = "", cl = null, location = "";
+      let target = raw, status = null, title = "", tech = [], ip = "", cdn = "", cl = null, location = "", asn = "", cname = "";
       if (raw.startsWith("{")) {
         try {
           const o = JSON.parse(raw);
@@ -262,11 +262,13 @@
           if (o.cdn && typeof o.cdn_name === "string") cdn = o.cdn_name;
           if (typeof o.content_length === "number") cl = o.content_length;
           if (typeof o.location === "string") location = o.location;
+          if (o.asn && (o.asn.as_name || o.asn.as_number)) asn = o.asn.as_name || o.asn.as_number;
+          if (Array.isArray(o.cname) && o.cname.length) cname = o.cname[0];
         } catch (e) { /* treat as plain URL */ }
       }
       const url = safeLiveURL(target);
-      const hay = (target + " " + title + " " + tech.join(" ") + " " + ip).toLowerCase();
-      return { raw, display: target, url, status, title, tech, ip, cdn, cl, location,
+      const hay = (target + " " + title + " " + tech.join(" ") + " " + ip + " " + asn).toLowerCase();
+      return { raw, display: target, url, status, title, tech, ip, cdn, cl, location, asn, cname,
                suspicious: suspiciousTest.test(hay) };
     }
 
@@ -283,7 +285,9 @@
       parts.push(`<span class="chip text-white ${statusColor(e.status)}">${e.status != null ? e.status : "?"}</span>`);
       if (e.tech.length) e.tech.slice(0, 4).forEach(t => parts.push(chip(t, "bg-indigo-700 text-white")));
       if (e.cdn) parts.push(chip(e.cdn, "bg-purple-700 text-white"));
-      if (e.ip) parts.push(chip(e.ip, "bg-gray-700 text-gray-200"));
+      if (e.ip) parts.push(chip(e.ip, "bg-gray-700 text-gray-200 mono"));
+      if (e.asn) parts.push(chip(e.asn, "bg-teal-800 text-teal-100"));
+      if (e.cname) parts.push(chip("cname:" + e.cname, "bg-slate-600 text-slate-100 mono"));
       if (typeof e.cl === "number") parts.push(chip(e.cl + "B", "bg-gray-700 text-gray-300"));
       const titleHtml = e.title
         ? `<div class="text-gray-400 text-xs break-all">${escHi(e.title)}</div>` : "";
