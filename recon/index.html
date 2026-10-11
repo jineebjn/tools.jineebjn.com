@@ -4,83 +4,206 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Recon Report Viewer</title>
+  <meta name="description" content="Subdomain and live-host recon report viewer.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230f172a'/%3E%3Ccircle cx='32' cy='32' r='16' fill='none' stroke='%233b82f6' stroke-width='3'/%3E%3Ccircle cx='32' cy='32' r='7' fill='none' stroke='%233b82f6' stroke-width='3'/%3E%3Ccircle cx='32' cy='32' r='2.5' fill='%2360a5fa'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     const spinner = document.createElement("div");
     spinner.innerHTML = '<div id="spinner" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75"><div class="animate-spin rounded-full h-16 w-16 border-t-4 border-blue-500"></div></div>';
-    document.body.appendChild(spinner);
+    // In <head> document.body is still null; attach to documentElement.
+    (document.body || document.documentElement).appendChild(spinner);
     tailwind.config = { darkMode: 'class' }
   </script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
   <style>
+    :root {
+      --bg: #0b1120;
+      --surface: #111c33;
+      --surface-2: #0d1526;
+      --border: #1e2b45;
+      --text: #e5e9f0;
+      --muted: #94a3b8;
+      --accent: #3b82f6;
+    }
     html, body { height: 100%; }
-    .resizable-panel { resize: vertical; overflow: auto; min-height: 200px; max-height: 80vh; }
-    .live-link { line-height: 0rem; }
-    #summaryStats { transition: all 0.3s ease-in-out; opacity: 0; transform: translateY(-10px); }
+    body {
+      font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(1200px 500px at 85% -10%, rgba(59,130,246,0.10), transparent 60%),
+        var(--bg);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+    }
+    code, .mono { font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+    .resizable-panel { resize: vertical; overflow: auto; min-height: 220px; max-height: 80vh; }
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: 0 1px 0 rgba(255,255,255,0.02) inset, 0 10px 30px -20px rgba(0,0,0,0.8);
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .panel:hover { border-color: #2b3d5e; }
+    .panel-body { background: var(--surface-2); }
+
+    #summaryStats { transition: all 0.3s ease-in-out; opacity: 0; transform: translateY(-6px); }
     #summaryStats.visible { display: flex; opacity: 1; transform: translateY(0); }
-    @keyframes fade-in {
-      from { opacity: 0; transform: translateY(20px); }
-      to { opacity: 1; transform: translateY(0); }
+    .stat {
+      display: flex; align-items: center; gap: 8px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 9999px; padding: 5px 12px; font-size: 13px;
     }
-    .animate-fade-in {
-      animation: fade-in 0.6s ease-out;
+    .stat b { color: #fff; font-variant-numeric: tabular-nums; }
+
+    .field {
+      background: var(--surface); border: 1px solid var(--border); color: var(--text);
+      border-radius: 10px;
     }
+    .field:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59,130,246,0.2); }
+
+    @keyframes fade-in { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+    .animate-fade-in { animation: fade-in 0.5s cubic-bezier(0.2,0.7,0.2,1); }
+
+    .chip {
+      font-size: 10.5px; line-height: 1; padding: 3px 7px; border-radius: 9999px;
+      white-space: nowrap; font-weight: 500; letter-spacing: 0.02em;
+    }
+    .chip.mono { font-size: 10px; }
+
+    .status-btn { font-weight: 600; opacity: 0.4; transition: opacity 0.12s, box-shadow 0.12s; }
+    .status-btn.active { opacity: 1; box-shadow: 0 0 0 2px rgba(255,255,255,0.15); }
+
+    .live-row { transition: background 0.1s; }
+    .live-row:hover { background: rgba(59,130,246,0.06); }
+
+    /* Refined scrollbars */
+    *::-webkit-scrollbar { width: 10px; height: 10px; }
+    *::-webkit-scrollbar-track { background: transparent; }
+    *::-webkit-scrollbar-thumb { background: #22304d; border-radius: 9999px; border: 2px solid transparent; background-clip: content-box; }
+    *::-webkit-scrollbar-thumb:hover { background: #2f4568; border-radius: 9999px; border: 2px solid transparent; background-clip: content-box; }
+    ::selection { background: rgba(59,130,246,0.35); }
   </style>
 </head>
 
-<body class="bg-gray-900 text-gray-100 h-full">
+<body class="h-full">
   <div class="flex flex-col h-full">
 
-    <!-- Navigation Section -->
-    <div class="p-6 border-b border-gray-700 flex flex-col gap-4 md:flex-row justify-between items-start md:items-center">
-      <h1 class="text-3xl font-bold">Recon Report Viewer</h1>
-
-      <div class="flex flex-col md:flex-row md:items-center md:space-x-6 space-y-2 md:space-y-0 w-full md:w-auto">
-        <input type="text" id="searchInput" placeholder="Search in results..."
-          class="px-4 py-2 rounded bg-gray-800 border border-gray-600 text-white hidden" />
-        <div id="summaryStats" class="hidden gap-6 text-gray-300 text-sm items-center">
-          <div class="flex items-center gap-2"><i class="fa-solid fa-layer-group"></i> Subs: <span id="summarySubs">0</span></div>
-          <div class="flex items-center gap-2"><i class="fa-solid fa-signal"></i> Live: <span id="summaryLive">0</span></div>
-          <div class="flex items-center gap-2"><i class="fa-solid fa-network-wired"></i> Takeover: <span id="summaryTakeover">0</span></div>
+    <!-- Header -->
+    <header class="sticky top-0 z-30 backdrop-blur border-b border-[var(--border)] bg-[rgba(11,17,32,0.82)]">
+      <div class="px-5 md:px-6 py-3.5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div class="flex items-center gap-3">
+          <span class="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-blue-500/15 text-blue-400 ring-1 ring-blue-500/30">
+            <i class="fa-solid fa-satellite-dish"></i>
+          </span>
+          <div>
+            <h1 class="text-lg font-semibold leading-tight">Recon Report Viewer</h1>
+            <p class="text-xs text-[var(--muted)] leading-tight">Subdomains &middot; live hosts &middot; takeovers</p>
+          </div>
         </div>
-        <div class="flex flex-wrap items-center gap-4">
-          <div class="relative">
+
+        <div class="flex flex-col sm:flex-row sm:items-center gap-3 w-full lg:w-auto">
+          <input type="text" id="searchInput" placeholder="Search results…"
+            class="field px-3.5 py-2 text-sm w-full sm:w-56 hidden" />
+          <div id="summaryStats" class="hidden gap-2 items-center">
+            <span class="stat"><i class="fa-solid fa-layer-group text-blue-400"></i> Subs <b id="summarySubs">0</b></span>
+            <span class="stat"><i class="fa-solid fa-signal text-green-400"></i> Live <b id="summaryLive">0</b></span>
+            <span class="stat"><i class="fa-solid fa-network-wired text-red-400"></i> Takeover <b id="summaryTakeover">0</b></span>
+          </div>
+          <div class="flex items-center gap-2">
             <select id="domainInput" onchange="loadReports()"
-              class="border rounded px-4 py-2 shadow bg-gray-800 text-white w-64 appearance-none">
-              <option disabled selected>Loading domains...</option>
+              class="field px-3.5 py-2 text-sm w-full sm:w-60 appearance-none cursor-pointer">
+              <option disabled selected>Loading domains…</option>
             </select>
-            <button id="refreshDomains" class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded" title="Refresh domain list">
+            <button id="refreshDomains" class="field px-3 py-2 text-[var(--muted)] hover:text-white" title="Refresh domain list">
               <i class="fas fa-sync-alt"></i>
             </button>
           </div>
-          <div id="status" class="text-red-400 font-semibold hidden ml-4"></div>
+          <div id="status" class="text-red-400 text-sm font-medium hidden"></div>
         </div>
       </div>
-    </div>
+
+      <!-- Filter / controls bar (shown once a domain is loaded) -->
+      <div id="controls" class="hidden px-5 md:px-6 py-2.5 border-t border-[var(--border)] flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+        <div class="flex items-center gap-1.5" id="statusFilters" title="Filter live hosts by HTTP status class">
+          <span class="text-[var(--muted)] mr-1 text-xs uppercase tracking-wide">Status</span>
+          <button data-sc="2" class="status-btn active bg-green-600 text-white rounded-md px-2 py-0.5 text-xs">2xx</button>
+          <button data-sc="3" class="status-btn active bg-yellow-500 text-white rounded-md px-2 py-0.5 text-xs">3xx</button>
+          <button data-sc="4" class="status-btn active bg-red-600 text-white rounded-md px-2 py-0.5 text-xs">4xx</button>
+          <button data-sc="5" class="status-btn active bg-red-800 text-white rounded-md px-2 py-0.5 text-xs">5xx</button>
+        </div>
+        <label class="flex items-center gap-2 cursor-pointer select-none text-[var(--muted)] hover:text-white">
+          <input type="checkbox" id="suspiciousOnly" class="accent-yellow-400 w-3.5 h-3.5"> Suspicious only
+        </label>
+        <div class="flex items-center gap-2">
+          <span class="text-[var(--muted)] text-xs uppercase tracking-wide">Sort</span>
+          <select id="sortBy" class="field px-2.5 py-1 text-xs cursor-pointer">
+            <option value="url">URL</option>
+            <option value="status">Status</option>
+            <option value="title">Title</option>
+            <option value="size">Size</option>
+          </select>
+        </div>
+        <button id="diffBtn" class="hidden field px-3 py-1 text-xs font-medium hover:text-white hover:border-blue-500">
+          <i class="fa-solid fa-code-compare"></i> Diff vs previous
+        </button>
+        <span id="freshness" class="text-[var(--muted)] text-xs ml-auto flex items-center gap-1.5"></span>
+      </div>
+    </header>
 
     <!-- Domain Submit Section -->
     <div id="submitSection" class="p-6 transition-all duration-500 ease-in-out">
-      <div class="max-w-xl mx-auto bg-gradient-to-r from-gray-800 to-gray-700 shadow-xl rounded-xl p-6 animate-fade-in">
-        <h2 class="text-2xl font-bold mb-4 text-center">Start a New Domain Scan</h2>
-        <div class="flex flex-col sm:flex-row items-center gap-4">
-          <input type="text" id="submitDomainInput" placeholder="Enter domain (e.g. example.com)"
-            class="flex-1 px-4 py-3 rounded-lg bg-gray-900 border border-gray-600 text-white shadow-inner focus:outline-none focus:ring-2 focus:ring-blue-600" />
+      <div class="max-w-xl mx-auto panel p-7 animate-fade-in text-center">
+        <span class="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-blue-500/15 text-blue-400 ring-1 ring-blue-500/30 mb-4">
+          <i class="fa-solid fa-magnifying-glass-chart text-xl"></i>
+        </span>
+        <h2 class="text-xl font-semibold mb-1">Start a new domain scan</h2>
+        <p class="text-sm text-[var(--muted)] mb-5">Enter a domain you are authorised to test.</p>
+        <div class="flex flex-col sm:flex-row items-center gap-3">
+          <input type="text" id="submitDomainInput" placeholder="example.com"
+            class="field flex-1 px-4 py-3 text-sm w-full mono" />
           <button id="submitDomainBtn"
-            class="bg-blue-600 hover:bg-blue-700 transition px-6 py-3 rounded-lg text-white font-semibold shadow-md">
-            Scan
+            class="bg-blue-600 hover:bg-blue-500 transition px-6 py-3 rounded-xl text-white font-semibold shadow-md w-full sm:w-auto">
+            <i class="fa-solid fa-radar mr-1"></i> Scan
           </button>
         </div>
-        <p id="submitDomainStatus" class="text-center mt-4 font-medium"></p>
+        <p id="submitDomainStatus" class="mt-4 font-medium text-sm"></p>
       </div>
     </div>
 
-    <div id="results" class="flex-1 overflow-auto p-6 grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+    <div id="results" class="flex-1 overflow-auto p-5 md:p-6 grid grid-cols-1 md:grid-cols-2 gap-5"></div>
+  </div>
+
+  <!-- Diff modal -->
+  <div id="diffModal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="panel max-w-3xl w-full max-h-[85vh] flex flex-col animate-fade-in">
+      <div class="flex justify-between items-center px-5 py-3.5 border-b border-[var(--border)]">
+        <h2 class="text-base font-semibold flex items-center gap-2"><i class="fa-solid fa-code-compare text-blue-400"></i> Scan diff</h2>
+        <button id="diffClose" class="text-[var(--muted)] hover:text-white text-2xl leading-none" aria-label="Close">&times;</button>
+      </div>
+      <div id="diffBody" class="p-5 overflow-auto text-sm panel-body rounded-b-[13px]"></div>
+    </div>
   </div>
 
   <script>
     const baseURL = "https://raw.githubusercontent.com/jineebjn/jjn-actions/refs/heads/main/output";
+    const apiBase = "https://api.github.com/repos/jineebjn/jjn-actions";
     const files = { takeover: "takeover.txt", live: "live.txt", subs: "subs.txt", subsuniq: "subs_uniq.txt" };
     const suspiciousKeywords = ["admin", "login", "phpmyadmin", "exposed", "database", "root", "ftp", "backup", "git", "env"];
+    const suspiciousRegex = new RegExp(`\\b(${suspiciousKeywords.join("|")})\\b`, "gi"); // for replace()
+    const suspiciousTest = new RegExp(`\\b(${suspiciousKeywords.join("|")})\\b`, "i");   // for test()
+
+    // Per-domain state used by the live-panel filters.
+    let currentDomain = "";
+    let liveEntries = [];          // parsed live.txt rows
+    let searchTerm = "";
+    let activeStatuses = new Set(["2", "3", "4", "5"]);
+    let suspiciousOnly = false;
+    let sortBy = "url";
+    let historyList = [];          // snapshot timestamps, newest first
 
     function escapeHTML(text) {
       return String(text)
@@ -91,15 +214,15 @@
         .replace(/'/g, "&#39;");
     }
 
-    function highlightSuspiciousKeywords(text) {
-      const regex = new RegExp(`\\b(${suspiciousKeywords.join("|")})\\b`, "gi");
-      return text.replace(regex, match => `<span class="bg-yellow-300 text-black font-semibold px-1 rounded">${match}</span>`);
+    // Escape first, then highlight suspicious keywords (safe for HTML output).
+    function escHi(text) {
+      return escapeHTML(text).replace(suspiciousRegex,
+        m => `<span class="bg-yellow-300 text-black font-semibold px-1 rounded">${m}</span>`);
     }
 
-    // Validate a host/URL line and return a safe http(s) URL, or null.
-    // Result files are remote data, so never trust a line as HTML or as a URL.
+    // Validate a host/URL and return a safe http(s) URL, or null.
     function safeLiveURL(line) {
-      const raw = line.trim();
+      const raw = String(line).trim();
       if (!raw) return null;
       const candidate = /^https?:\/\//i.test(raw) ? raw : `http://${raw}`;
       try {
@@ -109,105 +232,228 @@
       return null;
     }
 
-    // Status badge coloured by HTTP status class. null => unknown ("?").
-    function statusBadge(code) {
-      let color = "bg-gray-600";
-      let label = "?";
-      if (typeof code === "number" && code > 0) {
-        label = String(code);
-        if (code < 300) color = "bg-green-600";
-        else if (code < 400) color = "bg-yellow-500";
-        else color = "bg-red-600";
-      }
-      return `<span class="text-[10px] px-1 py-0.5 rounded text-white whitespace-nowrap ${color}">[${label}]</span>`;
+    function statusClass(code) {
+      if (typeof code !== "number" || code <= 0) return null;
+      return String(Math.floor(code / 100));
+    }
+    function statusColor(code) {
+      const c = statusClass(code);
+      if (c === "2") return "bg-green-600";
+      if (c === "3") return "bg-yellow-500";
+      if (c === "4") return "bg-red-600";
+      if (c === "5") return "bg-red-800";
+      return "bg-gray-600";
     }
 
-    // Render one live-host line. Handles both the new httpx JSON-lines format
-    // (real status code + title) and the older plain-URL format.
-    function linkifyLiveText(text) {
-      const lines = text.trim().split(/\n+/);
-      return lines.map((line) => {
-        const raw = line.trim();
-        if (!raw) return "";
+    // Parse a live.txt line into a normalised entry. Handles httpx JSON lines
+    // and the older plain-URL format.
+    function parseLiveLine(line) {
+      const raw = String(line).trim();
+      if (!raw) return null;
+      let target = raw, status = null, title = "", tech = [], ip = "", cdn = "", cl = null, location = "";
+      if (raw.startsWith("{")) {
+        try {
+          const o = JSON.parse(raw);
+          target = o.url || o.input || o.host || raw;
+          if (typeof o.status_code === "number") status = o.status_code;
+          if (typeof o.title === "string") title = o.title;
+          if (Array.isArray(o.tech)) tech = o.tech.filter(t => typeof t === "string");
+          ip = o.host || (Array.isArray(o.a) && o.a[0]) || "";
+          if (o.cdn && typeof o.cdn_name === "string") cdn = o.cdn_name;
+          if (typeof o.content_length === "number") cl = o.content_length;
+          if (typeof o.location === "string") location = o.location;
+        } catch (e) { /* treat as plain URL */ }
+      }
+      const url = safeLiveURL(target);
+      const hay = (target + " " + title + " " + tech.join(" ") + " " + ip).toLowerCase();
+      return { raw, display: target, url, status, title, tech, ip, cdn, cl, location,
+               suspicious: suspiciousTest.test(hay) };
+    }
 
-        let target = raw;
-        let status = null;
-        let title = "";
-        if (raw.startsWith("{")) {
-          try {
-            const o = JSON.parse(raw);
-            target = o.url || o.input || o.host || raw;
-            if (typeof o.status_code === "number") status = o.status_code;
-            if (typeof o.title === "string") title = o.title;
-          } catch (e) { /* not JSON: treat as a plain URL line below */ }
-        }
+    function chip(text, cls) {
+      return `<span class="chip ${cls}">${escapeHTML(text)}</span>`;
+    }
 
-        const url = safeLiveURL(target);
-        if (!url) {
-          // Not a valid URL: show as plain, escaped text, never a link.
-          return `<div class="text-sm text-gray-400 break-all">${escapeHTML(target)}</div>`;
-        }
+    function renderLiveEntry(e) {
+      if (!e.url) {
+        // Not a valid URL: plain escaped text, never a link.
+        return `<div class="live-row text-sm text-gray-400 break-all px-2 py-1 rounded mono">${escHi(e.display)}</div>`;
+      }
+      const parts = [];
+      parts.push(`<span class="chip text-white ${statusColor(e.status)}">${e.status != null ? e.status : "?"}</span>`);
+      if (e.tech.length) e.tech.slice(0, 4).forEach(t => parts.push(chip(t, "bg-indigo-700 text-white")));
+      if (e.cdn) parts.push(chip(e.cdn, "bg-purple-700 text-white"));
+      if (e.ip) parts.push(chip(e.ip, "bg-gray-700 text-gray-200"));
+      if (typeof e.cl === "number") parts.push(chip(e.cl + "B", "bg-gray-700 text-gray-300"));
+      const titleHtml = e.title
+        ? `<div class="text-gray-400 text-xs break-all">${escHi(e.title)}</div>` : "";
+      const locHtml = e.location
+        ? `<div class="text-gray-500 text-xs break-all">&rarr; ${escapeHTML(e.location)}</div>` : "";
+      return `
+        <div class="live-row px-2 py-1.5 rounded border-b border-[var(--border)]/60">
+          <div class="flex items-center flex-wrap gap-1.5">
+            <a href="${escapeHTML(e.url)}" target="_blank" rel="noopener noreferrer"
+               class="text-blue-400 hover:text-blue-300 hover:underline break-all mr-1 mono text-[13px]">${escHi(e.url)}</a>
+            ${parts.join("")}
+          </div>
+          ${titleHtml}
+          ${locHtml}
+        </div>`;
+    }
 
-        const titleHtml = title
-          ? `<span class="text-gray-400 text-xs break-all hidden sm:inline">${escapeHTML(title)}</span>`
-          : "";
-        return `
-          <div class="flex items-center justify-between gap-2 text-sm text-white">
-            <a href="${escapeHTML(url)}" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:underline break-all flex-1">${escapeHTML(url)}</a>
-            ${titleHtml}
-            ${statusBadge(status)}
-          </div>`;
-      }).join("");
+    // Apply status / suspicious / search filters and the chosen sort.
+    function renderLive() {
+      const contentEl = document.getElementById("live-content");
+      const statsEl = document.getElementById("live-stats");
+      if (!contentEl) return;
+      const allStatuses = activeStatuses.size === 4;
+      let rows = liveEntries.filter(e => {
+        if (suspiciousOnly && !e.suspicious) return false;
+        if (searchTerm && !e.raw.toLowerCase().includes(searchTerm)) return false;
+        const sc = statusClass(e.status);
+        if (sc === null) return allStatuses; // unknown shown only when not filtering
+        return activeStatuses.has(sc);
+      });
+      rows = rows.slice().sort((a, b) => {
+        if (sortBy === "status") return (a.status || 0) - (b.status || 0);
+        if (sortBy === "title") return (a.title || "").localeCompare(b.title || "");
+        if (sortBy === "size") return (b.cl || 0) - (a.cl || 0);
+        return (a.display || "").localeCompare(b.display || "");
+      });
+      contentEl.innerHTML = rows.length
+        ? rows.map(renderLiveEntry).join("")
+        : `<div class="text-gray-500 text-sm">No hosts match the current filters.</div>`;
+      if (statsEl) statsEl.textContent = `${rows.length} / ${liveEntries.length} host(s)`;
+    }
+
+    function reFilterTextPanel(id) {
+      const block = document.getElementById(`${id}-content`);
+      if (!block) return;
+      const raw = block.getAttribute("data-raw") || "";
+      const lines = raw.split(/\n+/);
+      const filtered = (searchTerm
+        ? lines.filter(l => l.toLowerCase().includes(searchTerm))
+        : lines).join("\n");
+      block.innerHTML = escHi(filtered);
     }
 
     async function loadDomainOptions() {
       const select = document.getElementById("domainInput");
-      const apiURL = "https://api.github.com/repos/jineebjn/jjn-actions/git/trees/main?recursive=1";
       try {
-        const res = await fetch(apiURL);
+        const res = await fetch(`${apiBase}/git/trees/main?recursive=1`);
         const data = await res.json();
         const dirs = new Set();
-        for (const item of data.tree) {
-          const match = item.path.match(/^output\/(.+?)\//);
+        for (const item of (data.tree || [])) {
+          const match = item.path.match(/^output\/([^/]+)\//);
           if (match) dirs.add(match[1]);
         }
         if (dirs.size === 0) throw new Error("No domains found");
         document.getElementById("spinner")?.remove();
         select.innerHTML = '<option disabled selected>Select domain</option>' +
-          Array.from(dirs).sort().map(dir => `<option value="${dir}">${dir}</option>`).join('');
+          Array.from(dirs).sort().map(dir => `<option value="${escapeHTML(dir)}">${escapeHTML(dir)}</option>`).join('');
       } catch (e) {
         document.getElementById("spinner")?.remove();
         select.innerHTML = '<option disabled>Error loading domains</option>';
       }
     }
 
+    const panelMeta = {
+      takeover: { icon: "fa-triangle-exclamation", color: "text-red-400" },
+      live:     { icon: "fa-signal",               color: "text-green-400" },
+      subs:     { icon: "fa-layer-group",          color: "text-blue-400" },
+      subsuniq: { icon: "fa-fingerprint",          color: "text-indigo-400" }
+    };
+
     function createPanel(title, id) {
       const isLive = id === "live";
       const contentTag = isLive ? "div" : "pre";
-      const extraClasses = isLive ? "flex flex-col gap-0.5 leading-tight" : "whitespace-pre-wrap";
+      const extraClasses = isLive ? "flex flex-col leading-tight" : "whitespace-pre-wrap mono text-xs";
+      const m = panelMeta[id] || { icon: "fa-file-lines", color: "text-gray-400" };
       return `
-        <div id="${id}" class="bg-gray-800 text-gray-100 rounded-lg shadow border flex flex-col resizable-panel">
-          <div class="flex justify-between items-center p-4 border-b border-gray-700">
-            <div class="flex flex-col gap-1">
-              <div class="flex gap-4">
-                <h2 class="text-lg font-semibold">${title}</h2>
-                <span class="text-sm text-gray-400" id="${id}-status">Loading...</span>
-                <span class="text-sm text-gray-400" id="${id}-stats"></span>
-              </div>
+        <div id="${id}" class="panel flex flex-col resizable-panel">
+          <div class="flex justify-between items-center px-4 py-3 border-b border-[var(--border)]">
+            <div class="flex gap-3 items-center min-w-0">
+              <i class="fa-solid ${m.icon} ${m.color}"></i>
+              <h2 class="text-sm font-semibold mono truncate">${title}</h2>
+              <span class="text-[11px] px-2 py-0.5 rounded-full bg-black/30 text-[var(--muted)] whitespace-nowrap" id="${id}-stats"></span>
+              <span class="text-xs text-[var(--muted)]" id="${id}-status">Loading…</span>
             </div>
-            <a href="#" id="${id}-download" class="text-blue-400 underline hidden" download>Download</a>
+            <a href="#" id="${id}-download" class="text-xs text-blue-400 hover:text-blue-300 hidden flex items-center gap-1.5 whitespace-nowrap" download>
+              <i class="fa-solid fa-download"></i> Download
+            </a>
           </div>
-          <div class="p-4 flex-1 flex flex-col overflow-auto">
-            <${contentTag} id="${id}-content" class="bg-gray-900 text-gray-100 p-2 rounded overflow-auto text-sm ${extraClasses} flex-1" data-raw="">Loading...</${contentTag}>
+          <div class="panel-body p-3 flex-1 flex flex-col overflow-auto rounded-b-[13px]">
+            <${contentTag} id="${id}-content" class="text-sm ${extraClasses} flex-1" data-raw="">Loading…</${contentTag}>
           </div>
         </div>`;
+    }
+
+    async function fetchText(url) {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Not found");
+      return res.text();
+    }
+    async function fetchJSON(url) {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Not found");
+      return res.json();
+    }
+
+    function timeAgo(iso) {
+      const then = new Date(iso).getTime();
+      if (isNaN(then)) return "";
+      const days = Math.floor((Date.now() - then) / 86400000);
+      if (days <= 0) return "scanned today";
+      if (days === 1) return "scanned 1 day ago";
+      if (days < 30) return `scanned ${days} days ago`;
+      const months = Math.floor(days / 30);
+      return `scanned ${months} month${months > 1 ? "s" : ""} ago`;
+    }
+
+    function setFreshness(text) {
+      const el = document.getElementById("freshness");
+      el.innerHTML = text ? `<i class="fa-regular fa-clock"></i> ${escapeHTML(text)}` : "";
+    }
+
+    async function loadFreshness(domain) {
+      const el = document.getElementById("freshness");
+      el.textContent = "";
+      try {
+        const meta = await fetchJSON(`${baseURL}/${domain}/meta.json`);
+        if (meta && meta.scanned_at) { setFreshness(timeAgo(meta.scanned_at)); return; }
+      } catch (e) { /* fall back to commit date */ }
+      try {
+        const commits = await fetchJSON(`${apiBase}/commits?path=output/${encodeURIComponent(domain)}&per_page=1`);
+        if (Array.isArray(commits) && commits[0]) {
+          setFreshness(timeAgo(commits[0].commit.committer.date));
+        }
+      } catch (e) { /* no freshness available */ }
+    }
+
+    async function loadSummary(domain, fallback) {
+      try {
+        const s = await fetchJSON(`${baseURL}/${domain}/summary.json`);
+        return {
+          subs: Number.isFinite(s.subs) ? s.subs : fallback.subs,
+          live: Number.isFinite(s.live) ? s.live : fallback.live,
+          takeover: Number.isFinite(s.takeover) ? s.takeover : fallback.takeover
+        };
+      } catch (e) { return fallback; }
+    }
+
+    async function loadHistory(domain) {
+      historyList = [];
+      try {
+        const h = await fetchJSON(`${baseURL}/${domain}/history.json`);
+        if (Array.isArray(h)) historyList = h;
+      } catch (e) { /* no history yet */ }
+      document.getElementById("diffBtn").classList.toggle("hidden", historyList.length < 2);
     }
 
     async function loadReports() {
       const domain = document.getElementById("domainInput").value.trim();
       const results = document.getElementById("results");
       const status = document.getElementById("status");
-      const summaryStatsEl = document.getElementById("summaryStats");
       results.innerHTML = "";
       status.classList.add("hidden");
 
@@ -218,86 +464,156 @@
         return;
       }
 
-      // Hide the domain submission section
+      currentDomain = domain;
+      liveEntries = [];
+      searchTerm = "";
+      document.getElementById("searchInput").value = "";
       document.getElementById("submitSection").classList.add("hidden");
-
-      summaryStatsEl.classList.remove("hidden");
-      summaryStatsEl.classList.add("visible");
+      document.getElementById("summaryStats").classList.add("visible");
+      document.getElementById("summaryStats").classList.remove("hidden");
       document.getElementById("searchInput").classList.remove("hidden");
+      document.getElementById("controls").classList.remove("hidden");
 
-      let summaryStats = { subs: 0, live: 0, takeover: 0 };
+      for (const id in files) results.innerHTML += createPanel(files[id], id);
 
-      for (let id in files) {
-        results.innerHTML += createPanel(files[id], id);
-      }
+      const fallback = { subs: 0, live: 0, takeover: 0 };
 
-      for (let id in files) {
+      for (const id in files) {
         const url = `${baseURL}/${domain}/${files[id]}`;
         const statusEl = document.getElementById(`${id}-status`);
         const statsEl = document.getElementById(`${id}-stats`);
         const contentEl = document.getElementById(`${id}-content`);
-
         try {
-          const res = await fetch(url);
-          if (!res.ok) throw new Error("Not found");
-          const text = await res.text();
+          const text = await fetchText(url);
           contentEl.setAttribute("data-raw", text);
-          let lineCount = text.trim().split(/\n+/).length;
-          statsEl.textContent = `${lineCount} line(s)`;
+          const lineCount = text.trim() ? text.trim().split(/\n+/).length : 0;
 
           if (id === "live") {
-            contentEl.innerHTML = linkifyLiveText(text);
-            summaryStats.live = lineCount;
+            liveEntries = text.trim().split(/\n+/).map(parseLiveLine).filter(Boolean);
+            fallback.live = liveEntries.length;
+            renderLive();
           } else {
-            contentEl.innerHTML = highlightSuspiciousKeywords(escapeHTML(text));
-            if (id === "subsuniq") summaryStats.subs = lineCount;
-            if (id === "takeover") summaryStats.takeover = (text.match(/open/g) || []).length;
+            contentEl.innerHTML = escHi(text);
+            statsEl.textContent = `${lineCount} line(s)`;
+            if (id === "subsuniq") fallback.subs = lineCount;
+            if (id === "takeover") fallback.takeover = (text.match(/^Domain/gm) || []).length;
           }
 
-          statusEl.textContent = "Loaded successfully";
+          statusEl.textContent = "Loaded";
           statusEl.classList.replace("text-gray-400", "text-green-400");
-
-          const downloadLink = document.getElementById(`${id}-download`);
-          downloadLink.href = url;
-          downloadLink.classList.remove("hidden");
+          const dl = document.getElementById(`${id}-download`);
+          dl.href = url;
+          dl.classList.remove("hidden");
         } catch (e) {
           contentEl.textContent = "[File not found or failed to load]";
-          statusEl.textContent = "Error: file not found";
+          statusEl.textContent = "Not found";
           statusEl.classList.replace("text-gray-400", "text-red-400");
         }
       }
 
-      document.getElementById("summarySubs").textContent = summaryStats.subs;
-      document.getElementById("summaryLive").textContent = summaryStats.live;
-      document.getElementById("summaryTakeover").textContent = summaryStats.takeover;
+      const summary = await loadSummary(domain, fallback);
+      document.getElementById("summarySubs").textContent = summary.subs;
+      document.getElementById("summaryLive").textContent = summary.live;
+      document.getElementById("summaryTakeover").textContent = summary.takeover;
+
+      loadFreshness(domain);
+      loadHistory(domain);
     }
 
-    document.getElementById("domainInput").addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        loadReports();
+    // ----- Diff -----
+    function parseHostStatusMap(liveText) {
+      const map = {};
+      liveText.trim().split(/\n+/).forEach(line => {
+        const e = parseLiveLine(line);
+        if (e && e.display) map[e.display.replace(/^https?:\/\//, "")] = e.status;
+      });
+      return map;
+    }
+
+    async function showDiff() {
+      const body = document.getElementById("diffBody");
+      document.getElementById("diffModal").classList.remove("hidden");
+      body.innerHTML = '<div class="text-gray-400">Loading diff…</div>';
+      if (historyList.length < 2) {
+        body.innerHTML = '<div class="text-gray-400">Not enough scan history to compare.</div>';
+        return;
       }
+      const [latest, prev] = historyList;
+      try {
+        const base = `${baseURL}/${currentDomain}/history`;
+        const [latestSubs, prevSubs, latestLive, prevLive] = await Promise.all([
+          fetchText(`${base}/${latest}/subs_uniq.txt`).catch(() => ""),
+          fetchText(`${base}/${prev}/subs_uniq.txt`).catch(() => ""),
+          fetchText(`${base}/${latest}/live.txt`).catch(() => ""),
+          fetchText(`${base}/${prev}/live.txt`).catch(() => "")
+        ]);
+        const setOf = t => new Set(t.trim().split(/\n+/).map(s => s.trim()).filter(Boolean));
+        const now = setOf(latestSubs), before = setOf(prevSubs);
+        const added = [...now].filter(x => !before.has(x)).sort();
+        const removed = [...before].filter(x => !now.has(x)).sort();
+
+        const sNow = parseHostStatusMap(latestLive), sBefore = parseHostStatusMap(prevLive);
+        const changed = [];
+        Object.keys(sNow).forEach(h => {
+          if (h in sBefore && sNow[h] !== sBefore[h]) changed.push(`${h}: ${sBefore[h] ?? "?"} → ${sNow[h] ?? "?"}`);
+        });
+
+        const list = (items, cls) => items.length
+          ? `<ul class="${cls} list-disc ml-5 space-y-0.5">${items.map(i => `<li class="break-all">${escapeHTML(i)}</li>`).join("")}</ul>`
+          : `<div class="text-gray-500">None</div>`;
+
+        body.innerHTML = `
+          <div class="text-gray-400 mb-3">Comparing <span class="text-gray-200">${escapeHTML(prev)}</span> → <span class="text-gray-200">${escapeHTML(latest)}</span></div>
+          <div class="grid sm:grid-cols-2 gap-4">
+            <div><h3 class="font-semibold text-green-400 mb-1">New subdomains (${added.length})</h3>${list(added, "text-green-300")}</div>
+            <div><h3 class="font-semibold text-red-400 mb-1">Removed subdomains (${removed.length})</h3>${list(removed, "text-red-300")}</div>
+          </div>
+          <div class="mt-4"><h3 class="font-semibold text-yellow-400 mb-1">Status changes (${changed.length})</h3>${list(changed, "text-yellow-200")}</div>`;
+      } catch (e) {
+        body.innerHTML = '<div class="text-red-400">Could not load diff data.</div>';
+      }
+    }
+
+    // ----- Event wiring -----
+    document.getElementById("domainInput").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); loadReports(); }
     });
 
     document.getElementById("searchInput").addEventListener("input", function () {
-      const term = this.value.toLowerCase();
-      const contentBlocks = document.querySelectorAll("[id$='-content']");
-      contentBlocks.forEach(block => {
-        const raw = block.getAttribute("data-raw") || "";
-        const isLive = block.id.includes("live");
-        const lines = raw.split(/\n+/);
-        const filtered = lines.filter(line => line.toLowerCase().includes(term)).join("\n");
-        if (isLive) {
-          block.innerHTML = linkifyLiveText(filtered);
-        } else {
-          block.innerHTML = highlightSuspiciousKeywords(escapeHTML(filtered));
-        }
-      });
+      searchTerm = this.value.toLowerCase();
+      renderLive();
+      ["subs", "subsuniq", "takeover"].forEach(reFilterTextPanel);
+    });
+
+    document.getElementById("statusFilters").addEventListener("click", (e) => {
+      const btn = e.target.closest(".status-btn");
+      if (!btn) return;
+      const sc = btn.dataset.sc;
+      if (activeStatuses.has(sc)) activeStatuses.delete(sc); else activeStatuses.add(sc);
+      btn.classList.toggle("active", activeStatuses.has(sc));
+      btn.style.opacity = activeStatuses.has(sc) ? "1" : "0.4";
+      renderLive();
+    });
+
+    document.getElementById("suspiciousOnly").addEventListener("change", function () {
+      suspiciousOnly = this.checked;
+      renderLive();
+    });
+
+    document.getElementById("sortBy").addEventListener("change", function () {
+      sortBy = this.value;
+      renderLive();
+    });
+
+    document.getElementById("diffBtn").addEventListener("click", showDiff);
+    document.getElementById("diffClose").addEventListener("click", () =>
+      document.getElementById("diffModal").classList.add("hidden"));
+    document.getElementById("diffModal").addEventListener("click", (e) => {
+      if (e.target.id === "diffModal") document.getElementById("diffModal").classList.add("hidden");
     });
 
     document.getElementById("refreshDomains").addEventListener("click", () => {
-      const select = document.getElementById("domainInput");
-      select.innerHTML = '<option disabled selected>Loading domains...</option>';
+      document.getElementById("domainInput").innerHTML = '<option disabled selected>Loading domains...</option>';
       loadDomainOptions();
     });
 
