@@ -83,7 +83,12 @@
     const suspiciousKeywords = ["admin", "login", "phpmyadmin", "exposed", "database", "root", "ftp", "backup", "git", "env"];
 
     function escapeHTML(text) {
-      return text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      return String(text)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
     }
 
     function highlightSuspiciousKeywords(text) {
@@ -91,15 +96,35 @@
       return text.replace(regex, match => `<span class="bg-yellow-300 text-black font-semibold px-1 rounded">${match}</span>`);
     }
 
+    // Validate a host/URL line and return a safe http(s) URL, or null.
+    // Result files are remote data, so never trust a line as HTML or as a URL.
+    function safeLiveURL(line) {
+      const raw = line.trim();
+      if (!raw) return null;
+      const candidate = /^https?:\/\//i.test(raw) ? raw : `http://${raw}`;
+      try {
+        const u = new URL(candidate);
+        if (u.protocol === "http:" || u.protocol === "https:") return u.href;
+      } catch (e) { /* not a valid URL */ }
+      return null;
+    }
+
     function linkifyLiveText(text) {
       const lines = text.trim().split(/\n+/);
       return lines.map((line, index) => {
-        let url = line.startsWith("http") ? line : `http://${line}`;
+        const raw = line.trim();
+        if (!raw) return "";
+        const display = escapeHTML(raw);
+        const url = safeLiveURL(raw);
+        if (!url) {
+          // Not a valid URL: show as plain, escaped text, never a link.
+          return `<div class="text-sm text-gray-400 break-all">${display}</div>`;
+        }
         const id = `live-link-${index}`;
         setTimeout(() => fetchStatus(url, id), 100);
         return `
           <div class="items-center justify-between gap-2 text-sm text-white">
-            <a href="${url}" target="_blank" class="text-blue-400 hover:underline break-all flex-1">${url}</a>
+            <a href="${escapeHTML(url)}" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:underline break-all flex-1">${display}</a>
             <span id="${id}" class="text-[10px] px-1 py-0.5 rounded bg-gray-700 text-gray-300 whitespace-nowrap">...</span>
           </div>`;
       }).join("");
