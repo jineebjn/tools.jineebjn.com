@@ -109,46 +109,55 @@
       return null;
     }
 
-    function linkifyLiveText(text) {
-      const lines = text.trim().split(/\n+/);
-      return lines.map((line, index) => {
-        const raw = line.trim();
-        if (!raw) return "";
-        const display = escapeHTML(raw);
-        const url = safeLiveURL(raw);
-        if (!url) {
-          // Not a valid URL: show as plain, escaped text, never a link.
-          return `<div class="text-sm text-gray-400 break-all">${display}</div>`;
-        }
-        const id = `live-link-${index}`;
-        setTimeout(() => fetchStatus(url, id), 100);
-        return `
-          <div class="items-center justify-between gap-2 text-sm text-white">
-            <a href="${escapeHTML(url)}" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:underline break-all flex-1">${display}</a>
-            <span id="${id}" class="text-[10px] px-1 py-0.5 rounded bg-gray-700 text-gray-300 whitespace-nowrap">...</span>
-          </div>`;
-      }).join("");
+    // Status badge coloured by HTTP status class. null => unknown ("?").
+    function statusBadge(code) {
+      let color = "bg-gray-600";
+      let label = "?";
+      if (typeof code === "number" && code > 0) {
+        label = String(code);
+        if (code < 300) color = "bg-green-600";
+        else if (code < 400) color = "bg-yellow-500";
+        else color = "bg-red-600";
+      }
+      return `<span class="text-[10px] px-1 py-0.5 rounded text-white whitespace-nowrap ${color}">[${label}]</span>`;
     }
 
-    async function fetchStatus(url, elementId) {
-      const el = document.getElementById(elementId);
-      try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 5000);
-        const res = await fetch(url, { method: "HEAD", mode: "no-cors", signal: controller.signal });
-        clearTimeout(timeout);
-        const code = res.status || 200;
-        let label = `${code} OK`;
-        let color = "bg-green-600";
-        if (code >= 400) color = "bg-red-600";
-        else if (code >= 300) color = "bg-yellow-500";
-        else if (code === 0) color = "bg-gray-600";
-        el.textContent = `[${label}]`;
-        el.className = `text-xs px-2 py-0.5 rounded text-white ${color}`;
-      } catch (e) {
-        el.textContent = `[Timeout]`;
-        el.className = "text-xs px-2 py-0.5 rounded bg-gray-600 text-white";
-      }
+    // Render one live-host line. Handles both the new httpx JSON-lines format
+    // (real status code + title) and the older plain-URL format.
+    function linkifyLiveText(text) {
+      const lines = text.trim().split(/\n+/);
+      return lines.map((line) => {
+        const raw = line.trim();
+        if (!raw) return "";
+
+        let target = raw;
+        let status = null;
+        let title = "";
+        if (raw.startsWith("{")) {
+          try {
+            const o = JSON.parse(raw);
+            target = o.url || o.input || o.host || raw;
+            if (typeof o.status_code === "number") status = o.status_code;
+            if (typeof o.title === "string") title = o.title;
+          } catch (e) { /* not JSON: treat as a plain URL line below */ }
+        }
+
+        const url = safeLiveURL(target);
+        if (!url) {
+          // Not a valid URL: show as plain, escaped text, never a link.
+          return `<div class="text-sm text-gray-400 break-all">${escapeHTML(target)}</div>`;
+        }
+
+        const titleHtml = title
+          ? `<span class="text-gray-400 text-xs break-all hidden sm:inline">${escapeHTML(title)}</span>`
+          : "";
+        return `
+          <div class="flex items-center justify-between gap-2 text-sm text-white">
+            <a href="${escapeHTML(url)}" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:underline break-all flex-1">${escapeHTML(url)}</a>
+            ${titleHtml}
+            ${statusBadge(status)}
+          </div>`;
+      }).join("");
     }
 
     async function loadDomainOptions() {
